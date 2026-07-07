@@ -32,6 +32,9 @@ int main(int argc, char* argv[]) {
     InputOption opt;
     opt.multiline  = true;
     opt.on_change  = [&] { modified = true; };
+    opt.transform  = [](InputState state) {
+        return state.element | color(Color::Green) | bgcolor(Color::Black);
+    };
 
     auto input_comp = Input(&content, "", opt);
 
@@ -50,10 +53,7 @@ int main(int argc, char* argv[]) {
 
         auto editor = window(
             text(title) | color(Color::Green),
-            input_comp->Render()
-                | color(Color::Green)
-                | bgcolor(Color::Black)
-                | flex
+            input_comp->Render() | flex
         ) | color(Color::Green) | flex;
 
         auto status = hbox({
