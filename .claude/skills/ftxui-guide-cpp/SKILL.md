@@ -1,5 +1,5 @@
 ---
-name: fxtui-guide-cpp
+name: ftxui-guide-cpp
 description: Expert reference guide for the FTXUI (also written FXTUI) C++ terminal UI framework. Auto-activates when developing terminal user interfaces in C++ using FTXUI, writing TUI components, creating interactive CLI apps, or when user asks about FTXUI elements, components, layout, colors, canvas, tables, animation, screens, gauges, spinners, menus, inputs, buttons, checkboxes, or event handling. Use when: adding FTXUI to a C++ project, building terminal dashboards, implementing TUI widgets, drawing braille canvas graphics, creating modal dialogs, resizable panels, or debugging FTXUI rendering. Do NOT use for other C++ GUI or TUI frameworks (Qt, wxWidgets, ncurses, ImGui, termbox).
 ---
 
@@ -137,5 +137,5 @@ For complete API details and patterns, load on demand:
 Run after the skill's primary task completes:
 
 ```bash
-python3 ${PWD}/.claude/skills/skill-stat/scripts/record-stat.py "fxtui-guide-cpp"
+python3 ${PWD}/.claude/skills/skill-stat/scripts/record-stat.py "ftxui-guide-cpp"
 ```
