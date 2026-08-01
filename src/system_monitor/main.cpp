@@ -1,12 +1,3 @@
-#include <ifaddrs.h>
-#include <mach/mach.h>
-#include <mach/processor_info.h>
-#include <mach/vm_statistics.h>
-#include <net/if.h>
-#include <net/if_var.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -24,7 +15,14 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/color.hpp>
 
+#include "sys_stats.h"
+
 using namespace ftxui;
+
+using sysstat::CpuTicks;
+using sysstat::read_cpu_ticks;
+using sysstat::read_mem_pct;
+using sysstat::read_net_bytes;
 
 namespace {
 
@@ -56,79 +54,6 @@ template <typename T>
 void push_capped(std::deque<T>& d, T v) {
   d.push_back(v);
   if (static_cast<int>(d.size()) > kHistoryLen) d.pop_front();
-}
-
-// ─── CPU ─────────────────────────────────────────────────────────────────────
-struct CpuTicks { unsigned user{}, sys{}, idle{}, nice{}; };
-
-bool read_cpu_ticks(std::vector<CpuTicks>& out) {
-  processor_info_array_t info = nullptr;
-  mach_msg_type_number_t info_cnt = 0;
-  natural_t cpu_cnt = 0;
-
-  if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,
-          &cpu_cnt, &info, &info_cnt) != KERN_SUCCESS)
-    return false;
-
-  auto* base = reinterpret_cast<processor_cpu_load_info_data_t*>(info);
-  out.resize(cpu_cnt);
-  for (natural_t i = 0; i < cpu_cnt; ++i) {
-    out[i].user = base[i].cpu_ticks[CPU_STATE_USER];
-    out[i].sys = base[i].cpu_ticks[CPU_STATE_SYSTEM];
-    out[i].idle = base[i].cpu_ticks[CPU_STATE_IDLE];
-    out[i].nice = base[i].cpu_ticks[CPU_STATE_NICE];
-  }
-  vm_deallocate(
-      mach_task_self(),
-      reinterpret_cast<vm_address_t>(info),
-      static_cast<vm_size_t>(info_cnt) * sizeof(integer_t));
-  return true;
-}
-
-// ─── Memory ──────────────────────────────────────────────────────────────────
-bool read_mem_pct(double& pct) {
-  host_basic_info_data_t basic{};
-  mach_msg_type_number_t basic_cnt = HOST_BASIC_INFO_COUNT;
-  if (host_info(mach_host_self(), HOST_BASIC_INFO,
-          reinterpret_cast<host_info_t>(&basic), &basic_cnt) != KERN_SUCCESS)
-    return false;
-
-  vm_statistics64_data_t vm{};
-  mach_msg_type_number_t vm_cnt = HOST_VM_INFO64_COUNT;
-  if (host_statistics64(mach_host_self(), HOST_VM_INFO64,
-          reinterpret_cast<host_info64_t>(&vm), &vm_cnt) != KERN_SUCCESS)
-    return false;
-
-  long page_sz = sysconf(_SC_PAGESIZE);
-  if (page_sz <= 0 or basic.max_mem == 0) return false;
-
-  uint64_t used = (static_cast<uint64_t>(vm.active_count) +
-                   static_cast<uint64_t>(vm.wire_count) +
-                   static_cast<uint64_t>(vm.compressor_page_count)) *
-                  static_cast<uint64_t>(page_sz);
-  pct =
-      static_cast<double>(used) / static_cast<double>(basic.max_mem) * 100.0;
-  return true;
-}
-
-// ─── Network ─────────────────────────────────────────────────────────────────
-// Returns the sum of ibytes + obytes across all non-loopback UP AF_LINK
-// interfaces.
-bool read_net_bytes(uint64_t& total) {
-  struct ifaddrs* list = nullptr;
-  if (getifaddrs(&list) != 0) return false;
-  total = 0;
-  for (auto* ifa = list; ifa; ifa = ifa->ifa_next) {
-    if (not ifa->ifa_addr or ifa->ifa_addr->sa_family != AF_LINK) continue;
-    if (ifa->ifa_flags & IFF_LOOPBACK) continue;
-    if (not (ifa->ifa_flags & IFF_UP)) continue;
-    if (not ifa->ifa_data) continue;
-    auto* d = reinterpret_cast<struct if_data*>(ifa->ifa_data);
-    total += static_cast<uint64_t>(d->ifi_ibytes) +
-             static_cast<uint64_t>(d->ifi_obytes);
-  }
-  freeifaddrs(list);
-  return true;
 }
 
 // ─── Section border helper ───────────────────────────────────────────────────
@@ -228,12 +153,12 @@ int main() {
           static_cast<int>(cur.size()) >= num_cpus) {
         std::lock_guard lock(history.mtx);
         for (int i = 0; i < num_cpus; ++i) {
-          unsigned du = cur[i].user - prev_cpu[i].user;
-          unsigned ds = cur[i].sys - prev_cpu[i].sys;
-          unsigned dd = cur[i].idle - prev_cpu[i].idle;
-          unsigned dn = cur[i].nice - prev_cpu[i].nice;
-          unsigned total = du + ds + dd + dn;
-          double pct = total > 0u
+          uint64_t du = cur[i].user - prev_cpu[i].user;
+          uint64_t ds = cur[i].sys - prev_cpu[i].sys;
+          uint64_t dd = cur[i].idle - prev_cpu[i].idle;
+          uint64_t dn = cur[i].nice - prev_cpu[i].nice;
+          uint64_t total = du + ds + dd + dn;
+          double pct = total > 0
               ? static_cast<double>(du + ds + dn) / total * 100.0
               : 0.0;
           push_capped(history.cpu[i], pct);
