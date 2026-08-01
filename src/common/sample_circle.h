@@ -1,9 +1,11 @@
-#ifndef SAMPLE_CIRCLE_H
-#define SAMPLE_CIRCLE_H
+#ifndef COMMON_SAMPLE_CIRCLE_H
+#define COMMON_SAMPLE_CIRCLE_H
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+
+namespace common {
 
 struct SampleCircle {
   double x, y, r;
@@ -49,4 +51,6 @@ inline double directional_fold(
   return max_v * std::pow(local / max_v, exponent);
 }
 
-#endif  // SAMPLE_CIRCLE_H
+}  // namespace common
+
+#endif  // COMMON_SAMPLE_CIRCLE_H

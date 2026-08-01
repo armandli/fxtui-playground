@@ -1,10 +1,12 @@
-#ifndef GLYPHS_H
-#define GLYPHS_H
+#ifndef COMMON_GLYPHS_H
+#define COMMON_GLYPHS_H
 
 #include <array>
 #include <string_view>
 
-#include <sample_circle.h>
+#include <common/sample_circle.h>
+
+namespace common {
 
 inline constexpr std::string_view kRamp = " .:-=+*#%@";
 
@@ -143,4 +145,6 @@ inline char match_char(const ShapeVector& sample) {
   return kRamp[best];
 }
 
-#endif  // GLYPHS_H
+}  // namespace common
+
+#endif  // COMMON_GLYPHS_H

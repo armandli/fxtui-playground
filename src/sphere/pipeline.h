@@ -1,15 +1,16 @@
 #ifndef PIPELINE_H
 #define PIPELINE_H
 
-#include <algorithm>
 #include <array>
 #include <vector>
 
+#include <common/ascii_field.h>
 #include <common/bouncing_scene.h>
-#include <glyphs.h>
-#include <sample_circle.h>
+#include <common/light_state.h>
+#include <common/rotation_state.h>
+#include <common/sample_circle.h>
+#include <common/scene_radius.h>
 #include <sphere_field.h>
-#include <transform.h>
 
 // Smaller than a comparable prior app's 0.32 fraction so the sphere
 // doesn't fill the frame and bounce motion stays clearly visible.
@@ -19,29 +20,28 @@ constexpr double kRadiusFraction = 0.28;
 // by render_frame below and by the bounce-physics update in main.cpp so
 // they never disagree on the play field.
 inline double compute_radius(int cols, int rows) {
-  return kRadiusFraction * std::min(static_cast<double>(cols), rows * 2.0);
+  return common::compute_scene_radius(cols, rows, kRadiusFraction);
 }
 
-// Two-pass per-frame render: pass 1 computes every cell's raw 6D sample
-// vector from the sphere/lighting field; pass 2 applies contrast
-// enhancement (which needs neighboring cells' pass-1 vectors) and matches
-// each cell against the nearest character.
+// Fills the per-cell 6-sample brightness field from the analytic
+// ray-sphere test, then hands it to the shape-agnostic common ASCII
+// matcher (contrast enhancement, directional fold, glyph matching).
 inline std::vector<char> render_frame(
     const common::Angles& angles,
     const common::Scene& scene,
-    const LightState& light,
+    const common::LightState& light,
     int cols,
     int rows) {
   double radius = compute_radius(cols, rows);
-  common::Mat3 body_rotation = build_rotation(angles);
+  common::Mat3 body_rotation = common::build_rotation(angles);
 
-  std::vector<std::array<double, 6>> field(static_cast<size_t>(cols) * rows);
+  common::AsciiField field(static_cast<size_t>(cols) * rows);
 
   for (int row = 0; row < rows; ++row) {
     for (int col = 0; col < cols; ++col) {
       auto& v = field[row * cols + col];
       for (int k = 0; k < 6; ++k) {
-        const auto& circle = kSampleCircles[k];
+        const auto& circle = common::kSampleCircles[k];
         double px = col + circle.x;
         double py = row * 2.0 + circle.y;
         double dx = px - scene.cx;
@@ -52,24 +52,7 @@ inline std::vector<char> render_frame(
     }
   }
 
-  for (auto& v : field) apply_global_contrast(v);
-
-  std::vector<char> output(static_cast<size_t>(cols) * rows);
-  for (int row = 0; row < rows; ++row) {
-    for (int col = 0; col < cols; ++col) {
-      // copy: folding must not mutate a neighbor's stored value
-      auto v = field[row * cols + col];
-      if (col > 0) {
-        v[0] = directional_fold(v[0], field[row * cols + (col - 1)][5]);
-      }
-      if (col < cols - 1) {
-        v[5] = directional_fold(v[5], field[row * cols + (col + 1)][0]);
-      }
-      output[row * cols + col] = match_char(v);
-    }
-  }
-
-  return output;
+  return common::ascii_from_field(std::move(field), cols, rows);
 }
 
 #endif  // PIPELINE_H

@@ -3,9 +3,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 #include <ftxui/dom/canvas.hpp>
 #include <ftxui/screen/color.hpp>
+
+#include <common/vec_math.h>
 
 namespace common {
 
@@ -31,6 +34,27 @@ inline bool point_in_triangle(
   bool has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0);
   bool has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0);
   return not (has_neg and has_pos);
+}
+
+// Barycentric weights (wa, wb, wc) of (px, py) with respect to triangle
+// (a, b, c), packed into a Vec3 -- reusing Vec3 as a plain 3-tuple rather
+// than introducing a single-purpose struct. edge_sign(a,b,.)/(b,c,.)/(c,a,.)
+// are each proportional to the area swept opposite one vertex, and always
+// sum to the triangle's own (signed) area regardless of winding, so dividing
+// through by that sum yields weights that are valid for either winding
+// order. Returns nullopt if (px, py) is outside the triangle or the
+// triangle is degenerate (zero area).
+inline std::optional<Vec3> barycentric(
+    const Point& a, const Point& b, const Point& c, double px, double py) {
+  double d1 = edge_sign(a, b, px, py);
+  double d2 = edge_sign(b, c, px, py);
+  double d3 = edge_sign(c, a, px, py);
+  double total = d1 + d2 + d3;
+  if (std::abs(total) < 1e-12) return std::nullopt;
+
+  double wa = d2 / total, wb = d3 / total, wc = d1 / total;
+  if (wa < 0.0 or wb < 0.0 or wc < 0.0) return std::nullopt;
+  return Vec3{wa, wb, wc};
 }
 
 // Fills a 2D triangle onto the canvas with a flat color, using a

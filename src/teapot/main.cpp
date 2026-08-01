@@ -9,19 +9,21 @@
 #include <string>
 #include <vector>
 
+#include <camera.h>
 #include <common/animation_timer.h>
 #include <common/bouncing_scene.h>
 #include <common/grid_size.h>
 #include <common/light_state.h>
 #include <common/rotation_state.h>
 #include <pipeline.h>
-#include <sphere_field.h>
 
 using namespace ftxui;
 
 namespace {
 
-constexpr double kSpeed = 0.5;  // physics units per tick
+// Slower than sphere's 0.5 -- the teapot's on-screen silhouette is bigger,
+// so the same speed would read as brisker drift across the frame.
+constexpr double kSpeed = 0.4;
 constexpr auto kTickInterval = std::chrono::milliseconds(33);
 
 }  // namespace
@@ -56,7 +58,7 @@ int main() {
     auto grid_elem = vbox(std::move(rows)) | border | flex;
 
     return vbox({
-        text("Sphere — press q to quit") | bold | center,
+        text("Teapot — press q to quit") | bold | center,
         separator(),
         grid_elem,
     });
