@@ -20,6 +20,7 @@
 #include "common/mouse_input.h"
 #include "move_gen.h"
 #include "piece.h"
+#include "piece_bitmaps.h"
 #include "stockfish_client.h"
 
 using namespace common;
@@ -103,6 +104,10 @@ enum class GamePhase { ChoosingColor, Playing, ChoosingPromotion, GameOver };
 
 constexpr int kSidePanelWidth = 32;
 
+// Below this, a piece's pixel canvas (2*scale x 2*scale) is too coarse to
+// read as a bitmap silhouette, so RenderCell falls back to the plain glyph.
+constexpr int kMinBitmapScale = 2;
+
 // Default board coloring per the Wikipedia chess page convention (a1 dark, h1
 // light), using the widely-recognized "Wikipedia-style" palette.
 const Color kLightSquare = Color::RGB(255, 206, 158);
@@ -128,15 +133,14 @@ Element RenderCell(const Board& board, Position pos, int scale, bool is_selected
     else if (is_legal_target)
         bg = Color::Interpolate(0.4f, bg, Color::RGB(40, 130, 60));
 
-    Color fg = Color::White;
-    std::string glyph;
-    if (board[pos.rank][pos.file]) {
-        const Piece& p = *board[pos.rank][pos.file];
-        glyph = PieceGlyph(p.type);
-        fg = (p.side == Side::White) ? kWhitePieceFg : kBlackPieceFg;
-    }
+    if (!board[pos.rank][pos.file])
+        return RenderGlyphCell(bg, Color::White, "", scale);
 
-    return RenderGlyphCell(bg, fg, glyph, scale);
+    const Piece& p = *board[pos.rank][pos.file];
+    Color fg = (p.side == Side::White) ? kWhitePieceFg : kBlackPieceFg;
+    if (scale < kMinBitmapScale)
+        return RenderGlyphCell(bg, fg, PieceGlyph(p.type), scale);
+    return RenderPieceCell(bg, fg, PieceBitmapFor(p.type), scale);
 }
 
 Element RenderBoard(const Board& board, int scale, Side human_color, const std::optional<Position>& selected,
