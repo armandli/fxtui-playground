@@ -1,11 +1,12 @@
-#pragma once
+#ifndef SAMPLE_CIRCLE_H
+#define SAMPLE_CIRCLE_H
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 
 struct SampleCircle {
-    double x, y, r;
+  double x, y, r;
 };
 
 // 3 columns x 2 rows, staggered by a half row-pitch (left column pushed
@@ -31,17 +32,21 @@ constexpr double kContrastExponent = 1.6;
 
 // Pulls dark components toward zero more aggressively than bright ones,
 // relative to the vector's own brightest component.
-inline void ApplyGlobalContrast(std::array<double, 6>& v, double exponent = kContrastExponent) {
-    double max_v = *std::max_element(v.begin(), v.end());
-    if (max_v <= 1e-9) return;
-    for (double& x : v) x = max_v * std::pow(x / max_v, exponent);
+inline void apply_global_contrast(
+    std::array<double, 6>& v, double exponent = kContrastExponent) {
+  double max_v = *std::max_element(v.begin(), v.end());
+  if (max_v <= 1e-9) return;
+  for (double& x : v) x = max_v * std::pow(x / max_v, exponent);
 }
 
 // Sharpens the transition across a shared cell edge: a strong neighbor
 // sample can "pull up" a weak local one before the same power-curve is
 // applied, using their shared max as the new brightest reference.
-inline double DirectionalFold(double local, double neighbor, double exponent = kContrastExponent) {
-    double max_v = std::max(local, neighbor);
-    if (max_v <= 1e-9) return 0.0;
-    return max_v * std::pow(local / max_v, exponent);
+inline double directional_fold(
+    double local, double neighbor, double exponent = kContrastExponent) {
+  double max_v = std::max(local, neighbor);
+  if (max_v <= 1e-9) return 0.0;
+  return max_v * std::pow(local / max_v, exponent);
 }
+
+#endif  // SAMPLE_CIRCLE_H
