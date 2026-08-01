@@ -7,7 +7,6 @@
 #include <ftxui/screen/terminal.hpp>
 
 #include <signal.h>
-#include <sys/wait.h>
 
 #include <algorithm>
 #include <iostream>
@@ -16,30 +15,17 @@
 #include <vector>
 
 #include "board.h"
+#include "common/child_process.h"
+#include "common/grid_render.h"
+#include "common/mouse_input.h"
 #include "move_gen.h"
 #include "piece.h"
 #include "stockfish_client.h"
 
+using namespace common;
 using namespace ftxui;
 
 namespace {
-
-// Load-bearing only before screen.Loop() starts (CLI parsing + the blocking
-// Start() handshake) and briefly after it returns during our own cleanup.
-// While the TUI is actually running, FTXUI's own ScreenInteractive::Loop()
-// installs handlers for SIGINT/SIGTERM (and others) that convert the signal
-// into a graceful Loop() return, restoring this handler once Loop() exits --
-// so ~StockfishClient() already runs cleanly via normal scope-unwind during
-// gameplay, no special handling needed there.
-void HandleFatalSignal(int sig) {
-    pid_t pid = g_engine_pid.load(std::memory_order_relaxed);
-    if (pid > 0) {
-        kill(pid, SIGTERM);
-        waitpid(pid, nullptr, WNOHANG);  // best-effort reap, avoids a visible zombie
-    }
-    signal(sig, SIG_DFL);
-    raise(sig);
-}
 
 void PrintUsage(std::ostream& out, const char* prog) {
     out << "usage: " << prog << " [--elo N | --movetime MS | --depth D] [-h]\n"
@@ -150,19 +136,7 @@ Element RenderCell(const Board& board, Position pos, int scale, bool is_selected
         fg = (p.side == Side::White) ? kWhitePieceFg : kBlackPieceFg;
     }
 
-    int width = 2 * scale;
-    int mid_row = scale / 2;
-    Elements rows;
-    for (int y = 0; y < scale; ++y) {
-        if (y == mid_row && !glyph.empty()) {
-            int left = (width - 1) / 2;
-            int right = width - 1 - left;
-            rows.push_back(text(std::string(left, ' ') + glyph + std::string(right, ' ')));
-        } else {
-            rows.push_back(text(std::string(width, ' ')));
-        }
-    }
-    return vbox(std::move(rows)) | bgcolor(bg) | color(fg) | bold;
+    return RenderGlyphCell(bg, fg, glyph, scale);
 }
 
 Element RenderBoard(const Board& board, int scale, Side human_color, const std::optional<Position>& selected,
@@ -173,29 +147,21 @@ Element RenderBoard(const Board& board, int scale, Side human_color, const std::
             if (m.from == *selected)
                 targets.push_back(m.to);
     }
-    Elements rows;
-    for (int display_row = 0; display_row < 8; ++display_row) {
-        Elements cols;
-        for (int display_col = 0; display_col < 8; ++display_col) {
-            // DisplayCol/DisplayRow are self-inverse, so calling them on a display
-            // coordinate recovers the underlying board file/rank.
-            Position pos{DisplayCol(display_col, human_color), DisplayRow(display_row, human_color)};
-            bool is_selected = selected.has_value() && *selected == pos;
-            bool is_target = std::find(targets.begin(), targets.end(), pos) != targets.end();
-            bool is_check = king_in_check.has_value() && *king_in_check == pos;
-            cols.push_back(RenderCell(board, pos, scale, is_selected, is_target, is_check));
-        }
-        rows.push_back(hbox(std::move(cols)));
-    }
-    return vbox(std::move(rows));
+    return RenderGrid(8, 8, [&](int display_row, int display_col) {
+        // DisplayCol/DisplayRow are self-inverse, so calling them on a display
+        // coordinate recovers the underlying board file/rank.
+        Position pos{DisplayCol(display_col, human_color), DisplayRow(display_row, human_color)};
+        bool is_selected = selected.has_value() && *selected == pos;
+        bool is_target = std::find(targets.begin(), targets.end(), pos) != targets.end();
+        bool is_check = king_in_check.has_value() && *king_in_check == pos;
+        return RenderCell(board, pos, scale, is_selected, is_target, is_check);
+    });
 }
 
 int ComputeScale(Dimensions term) {
-    int avail_rows = std::max(1, term.dimy - 2);                        // board border top/bottom
-    int avail_cols = std::max(1, term.dimx - kSidePanelWidth - 3);      // border + separator + side panel
-    int scale_r = std::max(1, avail_rows / 8);
-    int scale_c = std::max(1, avail_cols / 16);  // 2*scale per cell, 8 cells wide
-    return std::max(1, std::min(scale_r, scale_c));
+    int avail_rows = std::max(1, term.dimy - 2);                    // board border top/bottom
+    int avail_cols = std::max(1, term.dimx - kSidePanelWidth - 3);  // border + separator + side panel
+    return ComputeGridScale(avail_rows, avail_cols, 8, 8);
 }
 
 std::optional<Position> KingInCheckSquare(const Board& board, const GameState& state) {
@@ -238,9 +204,17 @@ std::string ResultText(GameResult r, Side side_to_move) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    // common::TerminateChildAndReraise is load-bearing only before
+    // screen.Loop() starts (CLI parsing + the blocking Start() handshake) and
+    // briefly after it returns during our own cleanup. While the TUI is
+    // actually running, FTXUI's own ScreenInteractive::Loop() installs
+    // handlers for SIGINT/SIGTERM (and others) that convert the signal into
+    // a graceful Loop() return, restoring this handler once Loop() exits --
+    // so ~StockfishClient() already runs cleanly via normal scope-unwind
+    // during gameplay, no special handling needed there.
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGINT, HandleFatalSignal);
-    signal(SIGTERM, HandleFatalSignal);
+    signal(SIGINT, TerminateChildAndReraise);
+    signal(SIGTERM, TerminateChildAndReraise);
 
     StockfishClient::DifficultyConfig config;
     if (auto code = ParseArgs(argc, argv, config))
@@ -409,7 +383,7 @@ int main(int argc, char** argv) {
             return true;
         }
 
-        if (!e.is_mouse() || e.mouse().button != Mouse::Left || e.mouse().motion != Mouse::Pressed)
+        if (!IsLeftClickPress(e))
             return false;
         int mx = e.mouse().x, my = e.mouse().y;
 
@@ -452,8 +426,7 @@ int main(int argc, char** argv) {
         // stretched height, not the board's tight content height. Use the same
         // ComputeScale() the renderer used instead, anchored at board_box's origin.
         int scale = ComputeScale(Terminal::Size());
-        int display_col = (mx - board_box.x_min) / (2 * scale);
-        int display_row = (my - board_box.y_min) / scale;
+        auto [display_row, display_col] = PixelToCell(mx, my, board_box, scale);
         if (display_col < 0 || display_col >= 8 || display_row < 0 || display_row >= 8)
             return false;
         Position clicked{DisplayCol(display_col, human_color), DisplayRow(display_row, human_color)};

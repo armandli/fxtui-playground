@@ -5,7 +5,6 @@
 #include <ftxui/screen/color.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <random>
@@ -13,6 +12,9 @@
 #include <utility>
 #include <vector>
 
+#include "common/animation_timer.h"
+
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -175,19 +177,7 @@ int main() {
         return false;
     });
 
-    // Timer thread: fires every second and posts a Custom event to the main
-    // loop, which triggers update() above.
-    std::atomic<bool> running{true};
-    std::thread timer([&] {
-        while (running.load(std::memory_order_relaxed)) {
-            std::this_thread::sleep_for(kTickInterval);
-            if (running.load(std::memory_order_relaxed))
-                screen.PostEvent(Event::Custom);
-        }
-    });
+    AnimationTimer timer(screen, kTickInterval);
 
     screen.Loop(app);
-
-    running.store(false, std::memory_order_relaxed);
-    timer.join();
 }

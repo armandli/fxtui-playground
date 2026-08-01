@@ -7,19 +7,17 @@
 #include <ftxui/screen/terminal.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <numbers>
-#include <thread>
 
+#include "common/animation_timer.h"
+#include "common/rasterizer2d.h"
+
+using namespace common;
 using namespace ftxui;
 
 namespace {
-
-struct Point {
-    double x, y;
-};
 
 // Rotates a point around (cx, cy) by `theta` radians. In this y-down canvas
 // coordinate space, increasing theta with this formula turns the point
@@ -27,20 +25,6 @@ struct Point {
 Point rotate(double cx, double cy, double radius, double base_angle, double theta) {
     double a = base_angle + theta;
     return {cx + radius * std::cos(a), cy + radius * std::sin(a)};
-}
-
-// Sign of the cross product (p2-p1) x (p-p1); used for the point-in-triangle test.
-double edge_sign(const Point& p1, const Point& p2, double px, double py) {
-    return (px - p2.x) * (p1.y - p2.y) - (p1.x - p2.x) * (py - p2.y);
-}
-
-bool point_in_triangle(double px, double py, const Point& a, const Point& b, const Point& c) {
-    double d1 = edge_sign(a, b, px, py);
-    double d2 = edge_sign(b, c, px, py);
-    double d3 = edge_sign(c, a, px, py);
-    bool has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    bool has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-    return !(has_neg && has_pos);
 }
 
 }  // namespace
@@ -70,22 +54,7 @@ int main() {
             Point v1 = rotate(cx, cy, radius, std::numbers::pi / 6.0, theta);
             Point v2 = rotate(cx, cy, radius, 5.0 * std::numbers::pi / 6.0, theta);
 
-            int min_x = static_cast<int>(std::floor(std::min({v0.x, v1.x, v2.x})));
-            int max_x = static_cast<int>(std::ceil(std::max({v0.x, v1.x, v2.x})));
-            int min_y = static_cast<int>(std::floor(std::min({v0.y, v1.y, v2.y})));
-            int max_y = static_cast<int>(std::ceil(std::max({v0.y, v1.y, v2.y})));
-            min_x = std::clamp(min_x, 0, canvas_w - 1);
-            max_x = std::clamp(max_x, 0, canvas_w - 1);
-            min_y = std::clamp(min_y, 0, canvas_h - 1);
-            max_y = std::clamp(max_y, 0, canvas_h - 1);
-
-            for (int y = min_y; y <= max_y; ++y) {
-                for (int x = min_x; x <= max_x; ++x) {
-                    if (point_in_triangle(x, y, v0, v1, v2)) {
-                        c.DrawPoint(x, y, true, Color::Yellow);
-                    }
-                }
-            }
+            FillTriangle(c, v0, v1, v2, Color::Yellow);
         };
 
         auto canvas_elem = canvas(canvas_w, canvas_h, draw_fn) | border | flex;
@@ -112,18 +81,7 @@ int main() {
         return false;
     });
 
-    // Timer thread: fires every ~33 ms (~30 FPS) and posts a Custom event to the main loop.
-    std::atomic<bool> running{true};
-    std::thread timer([&] {
-        while (running.load(std::memory_order_relaxed)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(33));
-            if (running.load(std::memory_order_relaxed))
-                screen.PostEvent(Event::Custom);
-        }
-    });
+    AnimationTimer timer(screen, std::chrono::milliseconds(33));
 
     screen.Loop(app);
-
-    running.store(false, std::memory_order_relaxed);
-    timer.join();
 }

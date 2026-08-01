@@ -34,7 +34,10 @@ foreach(SUBDIR ${SRC_SUBDIRS})
     file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src/${SUBDIR}/*.cpp)
     if(SOURCES)
       add_executable(${SUBDIR} ${SOURCES})
-      target_include_directories(${SUBDIR} PRIVATE ${CMAKE_SOURCE_DIR}/src/${SUBDIR})
+      target_include_directories(${SUBDIR} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/${SUBDIR}
+        ${CMAKE_SOURCE_DIR}/src
+      )
       target_link_libraries(${SUBDIR}
         PRIVATE ftxui::screen
         PRIVATE ftxui::dom

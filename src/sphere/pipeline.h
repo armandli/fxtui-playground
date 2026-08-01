@@ -4,9 +4,9 @@
 #include <array>
 #include <vector>
 
+#include "common/bouncing_scene.h"
 #include "glyphs.h"
 #include "sample_circle.h"
-#include "scene.h"
 #include "sphere_field.h"
 #include "transform.h"
 

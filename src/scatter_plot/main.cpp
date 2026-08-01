@@ -16,6 +16,9 @@
 #include <string>
 #include <vector>
 
+#include "common/mouse_input.h"
+
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -166,9 +169,7 @@ int main() {
     });
 
     auto app = CatchEvent(renderer, [&](Event e) -> bool {
-        if (e.is_mouse()
-            && e.mouse().button == Mouse::Left
-            && e.mouse().motion == Mouse::Pressed) {
+        if (IsLeftClickPress(e)) {
             int mx = e.mouse().x, my = e.mouse().y;
             if (canvas_box.Contain(mx, my)) {
                 // Convert terminal cell click → braille canvas coordinates.

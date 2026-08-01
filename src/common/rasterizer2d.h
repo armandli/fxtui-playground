@@ -6,10 +6,13 @@
 #include <ftxui/dom/canvas.hpp>
 #include <ftxui/screen/color.hpp>
 
-#include "camera.h"
+namespace common {
 
-namespace tetra_raster {
+struct Point {
+    double x, y;
+};
 
+// Sign of the cross product (p2-p1) x (p-p1); used for the point-in-triangle test.
 inline double EdgeSign(const Point& p1, const Point& p2, double px, double py) {
     return (px - p2.x) * (p1.y - p2.y) - (p1.x - p2.x) * (py - p2.y);
 }
@@ -23,12 +26,8 @@ inline bool PointInTriangle(double px, double py, const Point& a, const Point& b
     return !(has_neg && has_pos);
 }
 
-}  // namespace tetra_raster
-
 // Fills a 2D triangle onto the canvas with a flat color, using a
-// bounding-box + edge-sign point-in-triangle test (ported from
-// rotating_triangle's single-triangle renderer, generalized to take an
-// arbitrary fill color so each face can be shaded independently).
+// bounding-box + edge-sign point-in-triangle test.
 inline void FillTriangle(ftxui::Canvas& canvas, const Point& p0, const Point& p1, const Point& p2,
                           const ftxui::Color& color) {
     int min_x = static_cast<int>(std::floor(std::min({p0.x, p1.x, p2.x})));
@@ -43,9 +42,11 @@ inline void FillTriangle(ftxui::Canvas& canvas, const Point& p0, const Point& p1
 
     for (int y = min_y; y <= max_y; ++y) {
         for (int x = min_x; x <= max_x; ++x) {
-            if (tetra_raster::PointInTriangle(x, y, p0, p1, p2)) {
+            if (PointInTriangle(x, y, p0, p1, p2)) {
                 canvas.DrawPoint(x, y, true, color);
             }
         }
     }
 }
+
+}  // namespace common

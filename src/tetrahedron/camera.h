@@ -2,12 +2,11 @@
 
 #include <algorithm>
 
+#include "common/rasterizer2d.h"
+#include "common/vec_math.h"
 #include "mesh.h"
-#include "vec_math.h"
 
-struct Point {
-    double x, y;
-};
+using namespace common;
 
 inline double NominalScale(int canvas_w, int canvas_h) {
     return 0.32 * std::min(canvas_w, canvas_h) / kCircumradius;

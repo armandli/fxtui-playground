@@ -14,6 +14,9 @@
 #include <string>
 #include <vector>
 
+#include "common/mouse_input.h"
+
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -139,9 +142,7 @@ int main() {
             if (highlighted < kNumBins - 1) ++highlighted;
             return true;
         }
-        if (e.is_mouse()
-            && e.mouse().button == Mouse::Left
-            && e.mouse().motion == Mouse::Pressed) {
+        if (IsLeftClickPress(e)) {
             int mx = e.mouse().x;
             int my = e.mouse().y;
             if (histogram_box.Contain(mx, my)) {

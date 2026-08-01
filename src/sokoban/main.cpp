@@ -8,8 +8,10 @@
 #include <iostream>
 #include <string>
 
+#include "common/grid_render.h"
 #include "level.h"
 
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -22,9 +24,7 @@ int ComputeScale(const Level& level, Dimensions term) {
     // + board border(2 rows, 2 cols) = 6 rows, 2 cols.
     int avail_rows = std::max(1, term.dimy - 6);
     int avail_cols = std::max(1, term.dimx - 2);
-    int scale_r = std::max(1, avail_rows / level.rows);
-    int scale_c = std::max(1, avail_cols / (level.cols * 2));
-    return std::min(scale_r, scale_c);
+    return ComputeGridScale(avail_rows, avail_cols, level.rows, level.cols);
 }
 
 Element RenderCell(const Level& level, int r, int c, int scale) {
@@ -50,30 +50,12 @@ Element RenderCell(const Level& level, int r, int c, int scale) {
         glyph = "o";
     }
 
-    int width = 2 * scale;
-    int mid_row = scale / 2;
-    Elements rows;
-    for (int y = 0; y < scale; ++y) {
-        if (y == mid_row && !glyph.empty()) {
-            int left = (width - 1) / 2;
-            int right = width - 1 - left;
-            rows.push_back(text(std::string(left, ' ') + glyph + std::string(right, ' ')));
-        } else {
-            rows.push_back(text(std::string(width, ' ')));
-        }
-    }
-    return vbox(std::move(rows)) | bgcolor(bg) | color(fg) | bold;
+    return RenderGlyphCell(bg, fg, glyph, scale);
 }
 
 Element RenderBoard(const Level& level, int scale) {
-    Elements rows;
-    for (int r = 0; r < level.rows; ++r) {
-        Elements cols;
-        for (int c = 0; c < level.cols; ++c)
-            cols.push_back(RenderCell(level, r, c, scale));
-        rows.push_back(hbox(std::move(cols)));
-    }
-    return vbox(std::move(rows));
+    return RenderGrid(level.rows, level.cols,
+                       [&](int r, int c) { return RenderCell(level, r, c, scale); });
 }
 
 }  // namespace

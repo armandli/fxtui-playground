@@ -6,13 +6,13 @@
 #include <ftxui/screen/terminal.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <thread>
 
+#include "common/animation_timer.h"
 #include "parrot_frames.h"
 
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -94,19 +94,7 @@ int main() {
         return false;
     });
 
-    // Timer thread: fires every kFrameDelayMs (the GIF's own frame delay)
-    // and posts a Custom event to the main loop, which advances the frame.
-    std::atomic<bool> running{true};
-    std::thread timer([&] {
-        while (running.load(std::memory_order_relaxed)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(kFrameDelayMs));
-            if (running.load(std::memory_order_relaxed))
-                screen.PostEvent(Event::Custom);
-        }
-    });
+    AnimationTimer timer(screen, std::chrono::milliseconds(kFrameDelayMs));
 
     screen.Loop(app);
-
-    running.store(false, std::memory_order_relaxed);
-    timer.join();
 }

@@ -1,16 +1,11 @@
 #pragma once
 
-#include <cmath>
-#include <numbers>
 #include <random>
 
-#include "vec_math.h"
+#include "common/angles.h"
+#include "common/vec_math.h"
 
-constexpr double kDegToRad = std::numbers::pi / 180.0;
-
-struct Angles {
-    double x = 0.0, y = 0.0, z = 0.0;
-};
+using namespace common;
 
 struct RotationRates {
     double x, y, z;
@@ -27,16 +22,6 @@ inline RotationRates InitRotationRates(std::mt19937& rng) {
         return sign(rng) ? m : -m;
     };
     return {pick(), pick(), pick()};
-}
-
-// fmod-based wrap that stays correct for negative deltas, unlike a naive
-// "subtract 2*pi once" wrap that only works when the angle always advances
-// in the same direction (rotation rates here can be negative).
-inline double WrapAngle(double a) {
-    constexpr double kTwoPi = 2.0 * std::numbers::pi;
-    a = std::fmod(a, kTwoPi);
-    if (a < 0.0) a += kTwoPi;
-    return a;
 }
 
 inline void Advance(Angles& a, const RotationRates& rates) {

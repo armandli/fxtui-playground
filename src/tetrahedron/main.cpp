@@ -7,17 +7,17 @@
 #include <ftxui/screen/terminal.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <random>
-#include <thread>
 
+#include "common/animation_timer.h"
+#include "common/bouncing_scene.h"
 #include "camera.h"
 #include "mesh.h"
 #include "pipeline.h"
-#include "scene.h"
 #include "transform.h"
 
+using namespace common;
 using namespace ftxui;
 
 namespace {
@@ -78,18 +78,7 @@ int main() {
         return false;
     });
 
-    // Timer thread: fires every ~33 ms (~30 FPS) and posts a Custom event to the main loop.
-    std::atomic<bool> running{true};
-    std::thread timer([&] {
-        while (running.load(std::memory_order_relaxed)) {
-            std::this_thread::sleep_for(kTickInterval);
-            if (running.load(std::memory_order_relaxed))
-                screen.PostEvent(Event::Custom);
-        }
-    });
+    AnimationTimer timer(screen, kTickInterval);
 
     screen.Loop(app);
-
-    running.store(false, std::memory_order_relaxed);
-    timer.join();
 }

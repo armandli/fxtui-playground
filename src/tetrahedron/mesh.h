@@ -2,7 +2,9 @@
 
 #include <array>
 
-#include "vec_math.h"
+#include "common/vec_math.h"
+
+using namespace common;
 
 // Regular tetrahedron centered at the origin (alternating corners of a cube).
 constexpr Vec3 kLocalVertices[4] = {

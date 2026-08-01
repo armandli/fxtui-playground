@@ -4,7 +4,9 @@
 
 #include <ftxui/screen/color.hpp>
 
-#include "vec_math.h"
+#include "common/vec_math.h"
+
+using namespace common;
 
 // Light from the top-left (-X, +Y), biased toward the camera (+Z) so
 // straight-on faces aren't left nearly unlit.

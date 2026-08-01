@@ -6,7 +6,9 @@
 #include <optional>
 #include <random>
 
-#include "vec_math.h"
+#include "common/vec_math.h"
+
+using namespace common;
 
 // Light direction random walk: starts top-left-biased and drifts slowly,
 // hard-clamped to a cone around the start direction so the visible

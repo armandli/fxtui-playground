@@ -4,7 +4,10 @@
 #include <numbers>
 #include <random>
 
-// On-screen position (physics-space coordinates) and constant velocity.
+namespace common {
+
+// On-screen position and constant velocity of a point bouncing inside a
+// width x height box.
 struct Scene {
     double cx, cy;
     double vx, vy;
@@ -31,3 +34,5 @@ inline void UpdateScene(Scene& s, int width, int height, double radius) {
     if (s.cy < lo_y) { s.cy = lo_y; s.vy = -s.vy; }
     if (s.cy > hi_y) { s.cy = hi_y; s.vy = -s.vy; }
 }
+
+}  // namespace common

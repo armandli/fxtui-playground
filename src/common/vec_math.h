@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+namespace common {
+
 struct Vec3 {
     double x, y, z;
 };
@@ -66,3 +68,17 @@ inline Vec3 operator*(const Mat3& a, const Vec3& v) {
         a.m[2][0] * v.x + a.m[2][1] * v.y + a.m[2][2] * v.z,
     };
 }
+
+// Transpose == inverse for an orthonormal (pure rotation) matrix; used to
+// un-spin a world-space point back into the body's own rotation frame.
+inline Mat3 Transpose(const Mat3& a) {
+    Mat3 r{};
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            r.m[i][j] = a.m[j][i];
+        }
+    }
+    return r;
+}
+
+}  // namespace common

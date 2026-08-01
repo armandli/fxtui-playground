@@ -1,27 +1,18 @@
 #pragma once
 
 #include <array>
-#include <numbers>
 
+#include "common/angles.h"
+#include "common/vec_math.h"
 #include "mesh.h"
-#include "vec_math.h"
 
-constexpr double kDegToRad = std::numbers::pi / 180.0;
+using namespace common;
 
 // Slow, independent-rate rotation on all three axes so the tetrahedron reads
 // as genuinely tumbling rather than spinning flat around one edge-on axis.
 constexpr double kStepX = 0.9 * kDegToRad;
 constexpr double kStepY = 0.6 * kDegToRad;
 constexpr double kStepZ = 0.4 * kDegToRad;
-
-struct Angles {
-    double x = 0.0, y = 0.0, z = 0.0;
-};
-
-inline double WrapAngle(double a) {
-    constexpr double kTwoPi = 2.0 * std::numbers::pi;
-    return a > kTwoPi ? a - kTwoPi : a;
-}
 
 inline void Advance(Angles& a) {
     a.x = WrapAngle(a.x + kStepX);

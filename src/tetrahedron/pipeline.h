@@ -3,9 +3,8 @@
 #include <ftxui/dom/canvas.hpp>
 
 #include "camera.h"
+#include "common/bouncing_scene.h"
 #include "mesh.h"
-#include "rasterizer.h"
-#include "scene.h"
 #include "shading.h"
 #include "transform.h"
 
