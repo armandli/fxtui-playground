@@ -2,6 +2,7 @@
 #define SYS_STATS_H
 
 #include <cstdint>
+
 #include <vector>
 
 // Host CPU / memory / network counters, behind one interface with two
@@ -117,20 +118,21 @@ inline bool read_net_bytes(uint64_t& total) {
 #elif defined(__linux__)
 
 #include <cctype>
+
 #include <fstream>
 #include <limits>
 #include <sstream>
 #include <string>
 
-namespace sysstat {
-
-namespace detail {
+namespace sysstat::detail {
 
 constexpr const char* kProcStat = "/proc/stat";
 constexpr const char* kProcMeminfo = "/proc/meminfo";
 constexpr const char* kProcNetDev = "/proc/net/dev";
 
-}  // namespace detail
+}  // namespace sysstat::detail
+
+namespace sysstat {
 
 // /proc/stat carries one "cpu" aggregate line followed by one "cpuN" line per
 // logical CPU:
@@ -148,7 +150,8 @@ inline bool read_cpu_ticks(std::vector<CpuTicks>& out) {
   std::string line;
   while (std::getline(in, line)) {
     if (line.compare(0, 3, "cpu") != 0) break;  // per-CPU lines come first
-    if (line.size() < 4 or not std::isdigit(static_cast<unsigned char>(line[3])))
+    if (line.size() < 4 or
+        not std::isdigit(static_cast<unsigned char>(line[3])))
       continue;  // the "cpu " aggregate line
 
     std::istringstream ls(line);
@@ -183,9 +186,14 @@ inline bool read_mem_pct(double& pct) {
   uint64_t value = 0;
   while (in >> key >> value) {
     in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    if (key == "MemTotal:") total_kb = value;
-    else if (key == "MemAvailable:") { available_kb = value; have_available = true; }
-    else if (key == "MemFree:") free_kb = value;
+    if (key == "MemTotal:") {
+      total_kb = value;
+    } else if (key == "MemAvailable:") {
+      available_kb = value;
+      have_available = true;
+    } else if (key == "MemFree:") {
+      free_kb = value;
+    }
     if (total_kb and have_available) break;
   }
   if (total_kb == 0) return false;

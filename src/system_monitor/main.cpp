@@ -15,7 +15,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/color.hpp>
 
-#include "sys_stats.h"
+#include <sys_stats.h>
 
 using namespace ftxui;
 
